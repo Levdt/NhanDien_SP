@@ -1,183 +1,128 @@
+"""
+app.py — Điểm khởi chạy chính & Tích hợp Panel Quét vào AppShell cũ
+====================================================================
+Giữ nguyên vẹn 100% giao diện main_frame.py của bạn.
+"""
+
 import cv2
 import tkinter as tk
+from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
 from ultralytics import YOLO
 import mediapipe as mp
 from db import get_conn, tao_database, tra_gia, luu_lich_su
 import time
 
-# ─── Khởi tạo model ───────────────────────────────────────────────
-model = YOLO("yolov8n.pt")
+# Nhúng trực tiếp AppShell và hệ thống màu THEME từ file main_frame.py gốc
+from main_frame import AppShell, THEME          
 
-mp_hands   = mp.solutions.hands
-mp_drawing = mp.solutions.drawing_utils
-hands      = mp_hands.Hands(
+# Thử import các panel phụ của bạn, nếu chưa có thì bỏ qua không ảnh hưởng
+try:
+    from lich_su_window import lay_lich_su, thong_ke_nhanh, xuat_excel
+except ImportError:
+    pass
+
+# ─── Khởi tạo mô hình AI & Bàn tay ───────────────────────────────
+model = YOLO("yolov8n.pt")
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(
     max_num_hands=2,
     min_detection_confidence=0.6,
     min_tracking_confidence=0.5
 )
 
-# ─── Hằng số ──────────────────────────────────────────────────────
-CAM_W, CAM_H   = 660, 540
-WIN_W, WIN_H   = 1000, 540
-PANEL_W        = WIN_W - CAM_W          # 340px
-CONF_NGUONG    = 0.50                   # chỉ hiển thị khi >= 50%
-LUU_COOLDOWN   = 3.0                    # giây giữa 2 lần lưu lịch sử
+# ─── Hằng số Cấu hình ─────────────────────────────────────────────
+CONF_NGUONG  = 0.50
+LUU_COOLDOWN = 3.0
+BO_QUA = {"person", "chair", "couch", "bed", "dining table",
+          "laptop", "tv", "cell phone", "vase", "scissors"}
 
+# Định kích thước luồng hiển thị Camera (Khớp tỉ lệ ô trống bên trái)
+CAM_W, CAM_H = 640, 460   
 
 def hop_giao_nhau(box_a, box_b) -> bool:
-    """Trả True nếu 2 bounding box giao nhau (tay đang cầm sản phẩm)."""
+    """Kiểm tra xem vùng bàn tay và vùng vật thể có chạm nhau không."""
     ax1, ay1, ax2, ay2 = box_a
     bx1, by1, bx2, by2 = box_b
     return ax1 < bx2 and ax2 > bx1 and ay1 < by2 and ay2 > by1
-
 
 def dinh_dang_gia(gia_min: int, gia_max: int, don_vi: str) -> str:
     return f"{gia_min:,}đ – {gia_max:,}đ / {don_vi}"
 
 
-# ─── Giao diện Tkinter ────────────────────────────────────────────
-class App:
-    def __init__(self, root: tk.Tk):
-        root.title("Nhận diện rau củ quả & Giá chợ")
-        root.geometry(f"{WIN_W}x{WIN_H}")
-        root.resizable(False, False)
-        root.configure(bg="#1a1a1a")
+# ══════════════════════════════════════════════════════════════════
+#  PANEL QUÉT SẢN PHẨM (Sửa layout tương thích với AppShell gốc)
+# ══════════════════════════════════════════════════════════════════
+class PanelQuet(tk.Frame):
+    def __init__(self, parent):
+        # Kế thừa màu nền thẻ card (bg2) đồng bộ với thiết kế cũ của bạn
+        super().__init__(parent, bg=THEME["bg2"])
+        
+        # Khung chứa chính bên trong lòng Tab (Sử dụng pack giãn cách an toàn)
+        main_container = tk.Frame(self, bg=THEME["bg2"])
+        main_container.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # ── Khung camera (trái 2/3) ──────────────────────────────
-        self.lbl_cam = tk.Label(root, bg="#000000", cursor="none")
-        self.lbl_cam.place(x=0, y=0, width=CAM_W, height=CAM_H)
+        # 1. Khung hiển thị luồng Camera (Bên trái)
+        self.lbl_cam = tk.Label(main_container, bg="#05070a", width=CAM_W, height=CAM_H)
+        self.lbl_cam.pack(side="left", fill="both", expand=True)
 
-        # ── Panel thông tin (phải 1/3) ───────────────────────────
-        panel = tk.Frame(root, bg="#1e1e1e")
-        panel.place(x=CAM_W, y=0, width=PANEL_W, height=WIN_H)
+        # 2. Khung thông tin chi tiết (Bên phải)
+        info_panel = tk.Frame(main_container, bg=THEME["bg3"], width=300)
+        info_panel.pack(side="right", fill="y", padx=(20, 0))
+        info_panel.pack_propagate(False)
 
-        # Tiêu đề panel
-        tk.Label(
-            panel, text="THÔNG TIN SẢN PHẨM",
-            bg="#1e1e1e", fg="#555555",
-            font=("Segoe UI", 9, "bold")
-        ).pack(anchor="w", padx=20, pady=(20, 0))
+        # Cấu trúc các nhãn hiển thị thông tin sản phẩm
+        tk.Label(info_panel, text="TÊN SẢN PHẨM", bg=THEME["bg3"], fg=THEME["fg_muted"], font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=15, pady=(20, 2))
+        self.lbl_ten = tk.Label(info_panel, text="—", bg=THEME["bg3"], fg=THEME["fg"], font=("Segoe UI", 16, "bold"), wraplength=270, justify="left")
+        self.lbl_ten.pack(anchor="w", padx=15, pady=(0, 5))
 
-        self._duong_ke(panel)
+        self.lbl_conf = tk.Label(info_panel, text="", bg=THEME["bg3"], fg=THEME["fg_muted"], font=("Segoe UI", 10))
+        self.lbl_conf.pack(anchor="w", padx=15, pady=(0, 15))
 
-        # Tên sản phẩm
-        tk.Label(panel, text="Sản phẩm",
-                 bg="#1e1e1e", fg="#777777",
-                 font=("Segoe UI", 10)).pack(anchor="w", padx=20, pady=(12,0))
-        self.lbl_ten = tk.Label(
-            panel, text="—",
-            bg="#1e1e1e", fg="#ffffff",
-            font=("Segoe UI", 24, "bold"),
-            wraplength=PANEL_W - 40, justify="left"
-        )
-        self.lbl_ten.pack(anchor="w", padx=20)
+        tk.Label(info_panel, text="GIÁ THAM KHẢO", bg=THEME["bg3"], fg=THEME["fg_muted"], font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=15, pady=(5, 2))
+        self.lbl_gia = tk.Label(info_panel, text="—", bg=THEME["bg3"], fg=THEME["green"], font=("Segoe UI", 14, "bold"))
+        self.lbl_gia.pack(anchor="w", padx=15, pady=(0, 20))
 
-        # Độ tin cậy
-        self.lbl_conf = tk.Label(
-            panel, text="",
-            bg="#1e1e1e", fg="#555555",
-            font=("Segoe UI", 10)
-        )
-        self.lbl_conf.pack(anchor="w", padx=20)
+        tk.Label(info_panel, text="TRẠNG THÁI TAY", bg=THEME["bg3"], fg=THEME["fg_muted"], font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=15, pady=(5, 2))
+        self.lbl_tay = tk.Label(info_panel, text="Chưa phát hiện tay", bg=THEME["bg3"], fg=THEME["fg_muted"], font=("Segoe UI", 11))
+        self.lbl_tay.pack(anchor="w", padx=15, pady=(0, 15))
 
-        self._duong_ke(panel)
-
-        # Giá
-        tk.Label(panel, text="Giá tham khảo",
-                 bg="#1e1e1e", fg="#777777",
-                 font=("Segoe UI", 10)).pack(anchor="w", padx=20, pady=(12,0))
-        self.lbl_gia = tk.Label(
-            panel, text="—",
-            bg="#1e1e1e", fg="#4ade80",
-            font=("Segoe UI", 16, "bold")
-        )
-        self.lbl_gia.pack(anchor="w", padx=20)
-
-        self._duong_ke(panel)
-
-        # Trạng thái tay
-        tk.Label(panel, text="Trạng thái",
-                 bg="#1e1e1e", fg="#777777",
-                 font=("Segoe UI", 10)).pack(anchor="w", padx=20, pady=(12,0))
-        self.lbl_tay = tk.Label(
-            panel, text="Chưa phát hiện tay",
-            bg="#1e1e1e", fg="#888888",
-            font=("Segoe UI", 12)
-        )
-        self.lbl_tay.pack(anchor="w", padx=20)
-
-        self._duong_ke(panel)
-
-        # Lịch sử nhận diện (5 dòng gần nhất)
-        tk.Label(panel, text="Gần đây",
-                 bg="#1e1e1e", fg="#777777",
-                 font=("Segoe UI", 10)).pack(anchor="w", padx=20, pady=(12,0))
-        self.frame_history = tk.Frame(panel, bg="#1e1e1e")
-        self.frame_history.pack(fill="x", padx=20)
-        self.history_labels = []
-        for _ in range(5):
-            lbl = tk.Label(
-                self.frame_history, text="",
-                bg="#1e1e1e", fg="#444444",
-                font=("Segoe UI", 10), anchor="w"
-            )
-            lbl.pack(fill="x")
-            self.history_labels.append(lbl)
-
-        # Nút thoát
-        tk.Button(
-            panel, text="✕  Thoát",
-            bg="#2d2d2d", fg="#888888",
-            font=("Segoe UI", 10),
-            relief="flat", cursor="hand2",
-            command=self._thoat
-        ).pack(side="bottom", fill="x", padx=20, pady=20)
-
-        # ── Biến trạng thái ──────────────────────────────────────
-        self.history   = []
+        # Quản lý luồng trạng thái hoạt động
+        self.cap = None
+        self.running = False
         self.last_save = 0.0
-        self.cap       = cv2.VideoCapture(0)
-        self.running   = True
 
-        root.protocol("WM_DELETE_WINDOW", self._thoat)
-        self._update()
-
-    # ── Tiện ích UI ───────────────────────────────────────────────
-    def _duong_ke(self, parent):
-        tk.Frame(parent, bg="#2a2a2a", height=1).pack(
-            fill="x", padx=20, pady=6)
-
-    def _cap_nhat_history(self, ten_vn: str):
-        """Thêm tên SP vào đầu danh sách lịch sử."""
-        if not self.history or self.history[0] != ten_vn:
-            self.history.insert(0, ten_vn)
-            self.history = self.history[:5]
-        for i, lbl in enumerate(self.history_labels):
-            lbl.config(
-                text=f"• {self.history[i]}" if i < len(self.history) else "",
-                fg="#555555" if i > 0 else "#888888"
-            )
-
-    # ── Vòng lặp chính ───────────────────────────────────────────
-    def _update(self):
+    def on_show(self):
+        """Hook tự động chạy khi kích hoạt tab 'Quét sản phẩm'"""
         if not self.running:
+            self.cap = cv2.VideoCapture(0)
+            self.running = True
+            self._update()
+
+    def on_hide(self):
+        """Tự động tắt luồng camera khi chuyển sang tab khác để tránh đơ app"""
+        self.running = False
+        if self.cap is not None:
+            self.cap.release()
+            self.cap = None
+        self.lbl_cam.config(image="")
+
+    def _update(self):
+        if not self.running or self.cap is None:
             return
 
         ret, frame = self.cap.read()
         if not ret:
             self.lbl_cam.after(30, self._update)
             return
-        
-        frame = cv2.flip(frame, 1)
 
+        frame = cv2.flip(frame, 1)
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h_frame, w_frame = frame.shape[:2]
 
-        # ── Nhận diện bàn tay ─────────────────────────────────
+        # Nhận diện tay (MediaPipe)
         hand_result = hands.process(rgb)
-        hand_boxes  = []
-
+        hand_boxes = []
         if hand_result.multi_hand_landmarks:
             for lm in hand_result.multi_hand_landmarks:
                 xs = [p.x * w_frame for p in lm.landmark]
@@ -185,104 +130,113 @@ class App:
                 hx1, hy1 = int(min(xs)) - 10, int(min(ys)) - 10
                 hx2, hy2 = int(max(xs)) + 10, int(max(ys)) + 10
                 hand_boxes.append((hx1, hy1, hx2, hy2))
-                cv2.rectangle(rgb, (hx1, hy1), (hx2, hy2),
-                              (250, 204, 20), 2)
-                cv2.putText(rgb, "Tay", (hx1, hy1 - 6),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                            (250, 204, 20), 1)
+                cv2.rectangle(rgb, (hx1, hy1), (hx2, hy2), (250, 204, 20), 2)
 
-        # ── Nhận diện sản phẩm ────────────────────────────────
+        # Nhận diện vật thể (YOLOv8)
         results = model(frame, verbose=False)[0]
-        co_cam  = False
+        co_cam = False
 
         for box in results.boxes:
-            conf   = float(box.conf[0])
-            if conf < CONF_NGUONG:
+            conf = float(box.conf[0])
+            if conf < CONF_NGUONG: 
                 continue
 
             ten_en = model.names[int(box.cls[0])]
-            
-            # Bỏ qua các nhãn không phải sản phẩm
-            BO_QUA = {"person", "chair", "couch", "bed", "dining table",
-                    "laptop", "tv", "cell phone",
-                    "vase", "scissors"}
-            if ten_en in BO_QUA:
+            if ten_en in BO_QUA: 
                 continue
 
             x1, y1, x2, y2 = map(int, box.xyxy[0])
-                        
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
             sp_box = (x1, y1, x2, y2)
 
-            # Kiểm tra tay cầm sản phẩm
+            # Phân tích xem tay có chạm/cầm hộp sản phẩm không
             dang_cam = any(hop_giao_nhau(hb, sp_box) for hb in hand_boxes)
-            mau_box  = (74, 222, 128) if dang_cam else (120, 120, 120)
+            mau_box = (74, 222, 128) if dang_cam else (120, 120, 120)
 
             cv2.rectangle(rgb, (x1, y1), (x2, y2), mau_box, 2)
-            cv2.putText(rgb,
-                        f"{ten_en} {conf*100:.0f}%",
-                        (x1, y1 - 8),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, mau_box, 2)
+            cv2.putText(rgb, f"{ten_en} {conf*100:.0f}%", (x1, y1 - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.55, mau_box, 2)
 
-            # Chỉ cập nhật panel khi tay đang cầm
             if dang_cam:
                 co_cam = True
-                info   = tra_gia(ten_en)
+                info = tra_gia(ten_en)
                 ten_hien = info[0] if info else ten_en.capitalize()
 
                 self.lbl_ten.config(text=ten_hien)
-                self.lbl_conf.config(
-                    text=f"Độ tin cậy: {conf*100:.0f}%")
-
+                self.lbl_conf.config(text=f"Độ tin cậy: {conf*100:.0f}%")
+                
                 if info:
-                    self.lbl_gia.config(
-                        text=dinh_dang_gia(info[1], info[2], info[3]))
+                    self.lbl_gia.config(text=dinh_dang_gia(info[1], info[2], info[3]))
                 else:
-                    self.lbl_gia.config(text="Chưa có trong database")
+                    self.lbl_gia.config(text="Chưa có dữ liệu giá")
 
-                self.lbl_tay.config(
-                    text="✓ Đang cầm sản phẩm", fg="#4ade80")
-                self._cap_nhat_history(ten_hien)
+                self.lbl_tay.config(text="✓ Đang cầm sản phẩm", fg=THEME["green"])
 
-                # Lưu lịch sử vào DB (throttle 3 giây)
+                # Lưu lịch sử tự động (Cooldown chặn trùng lặp 3 giây)
                 now = time.time()
                 if now - self.last_save >= LUU_COOLDOWN:
                     luu_lich_su(ten_hien, conf)
                     self.last_save = now
 
-        # Khi không có sản phẩm đang được cầm
         if not co_cam:
             self.lbl_ten.config(text="—")
             self.lbl_conf.config(text="")
             self.lbl_gia.config(text="—")
             if hand_boxes:
-                self.lbl_tay.config(
-                    text="Tay trống — hãy cầm sản phẩm", fg="#facc15")
+                self.lbl_tay.config(text="Tay trống — hãy cầm sản phẩm", fg=THEME["yellow"])
             else:
-                self.lbl_tay.config(
-                    text="Chưa phát hiện tay", fg="#555555")
+                self.lbl_tay.config(text="Chưa phát hiện tay", fg=THEME["fg_muted"])
 
-        # ── Hiển thị frame lên Tkinter ────────────────────────
+        # Đẩy luồng ảnh lên giao diện
         img_resized = cv2.resize(rgb, (CAM_W, CAM_H))
-        img_pil     = Image.fromarray(img_resized)
-        self.imgtk  = ImageTk.PhotoImage(img_pil)
+        self.imgtk = ImageTk.PhotoImage(Image.fromarray(img_resized))
         self.lbl_cam.config(image=self.imgtk)
 
-        self.lbl_cam.after(30, self._update)   # ~33 fps
-
-    def _thoat(self):
-        self.running = False
-        self.cap.release()
-        self.lbl_cam.winfo_toplevel().destroy()
-        
+        if self.running:
+            self.lbl_cam.after(30, self._update)
 
 
+# ─── Khung Panel mẫu để hệ thống không bị lỗi thiếu Class ───
+class PanelLichSu(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent, bg=THEME["bg2"])
+        tk.Label(self, text="Lịch sử nhận diện", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
 
-# ─── Chạy ứng dụng ────────────────────────────────────────────────
+class PanelQuanLy(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent, bg=THEME["bg2"])
+        tk.Label(self, text="Quản lý sản phẩm", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  ĐIỀU HÀNH ỨNG DỤNG CHÍNH (Sử dụng nguyên gốc Shell từ main_frame)
+# ══════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
-    print("🔧 Đang khởi tạo database...")
+    print("🔧 Đang kiểm tra cơ sở dữ liệu...")
     tao_database()
-    print("🚀 Khởi động ứng dụng...")
+
     root = tk.Tk()
-    App(root)
+    # Gọi trực tiếp AppShell từ main_frame.py
+    shell = AppShell(root, title="Hệ thống nhận diện sản phẩm", size=(1060, 620))
+
+    # Đăng ký các Panel vào hệ thống tab nguyên bản bằng phương thức có sẵn
+    panel_quet   = shell.dang_ky_tab("Quét sản phẩm",      PanelQuet)
+    panel_lichsu = shell.dang_ky_tab("Lịch sử nhận diện",  PanelLichSu)
+    panel_quanly = shell.dang_ky_tab("Quản lý sản phẩm",   PanelQuanLy)
+
+    # Gắn sự kiện hook để giải phóng camera và ngắt tiến trình an toàn khi tắt app
+    def xử_lý_thoát():
+        shell.lay_panel(panel_quet).on_hide()
+        root.destroy()
+
+    # Đồng bộ bộ chuyển đổi Tab để tự động tắt camera khi bấm xem tab lịch sử/quản lý
+    def hien_thi_tab_co_kiem_soat(idx):
+        if idx != panel_quet:
+            shell.lay_panel(panel_quet).on_hide()
+        shell_hien_thi_goc(idx)
+
+    # Ghi đè phương thức hiển thị tab để kiểm soát vòng lặp camera thông minh
+    shell_hien_thi_goc = shell.hien_thi_tab
+    shell.hien_thi_tab = hien_thi_tab_co_kiem_soat
+
+    root.protocol("WM_DELETE_WINDOW", xử_lý_thoát)
+    shell.hien_thi_tab(0)  # Mặc định mở tab quét đầu tiên khi bật ứng dụng
     root.mainloop()
