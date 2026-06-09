@@ -16,11 +16,6 @@ import time
 # Nhúng trực tiếp AppShell và hệ thống màu THEME từ file main_frame.py gốc
 from main_frame import AppShell, THEME          
 
-# Thử import các panel phụ của bạn, nếu chưa có thì bỏ qua không ảnh hưởng
-try:
-    from lich_su_window import lay_lich_su, thong_ke_nhanh, xuat_excel
-except ImportError:
-    pass
 
 # ─── Khởi tạo mô hình AI & Bàn tay ───────────────────────────────
 model = YOLO("yolov8n.pt")
@@ -194,18 +189,6 @@ class PanelQuet(tk.Frame):
             self.lbl_cam.after(30, self._update)
 
 
-# ─── Khung Panel mẫu để hệ thống không bị lỗi thiếu Class ───
-class PanelLichSu(tk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent, bg=THEME["bg2"])
-        tk.Label(self, text="Lịch sử nhận diện", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
-
-class PanelQuanLy(tk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent, bg=THEME["bg2"])
-        tk.Label(self, text="Quản lý sản phẩm", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
-
-
 # ══════════════════════════════════════════════════════════════════
 #  ĐIỀU HÀNH ỨNG DỤNG CHÍNH (Sử dụng nguyên gốc Shell từ main_frame)
 # ══════════════════════════════════════════════════════════════════
@@ -219,8 +202,6 @@ if __name__ == "__main__":
 
     # Đăng ký các Panel vào hệ thống tab nguyên bản bằng phương thức có sẵn
     panel_quet   = shell.dang_ky_tab("Quét sản phẩm",      PanelQuet)
-    panel_lichsu = shell.dang_ky_tab("Lịch sử nhận diện",  PanelLichSu)
-    panel_quanly = shell.dang_ky_tab("Quản lý sản phẩm",   PanelQuanLy)
 
     # Gắn sự kiện hook để giải phóng camera và ngắt tiến trình an toàn khi tắt app
     def xử_lý_thoát():
