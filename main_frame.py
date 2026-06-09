@@ -240,10 +240,7 @@ class PanelLichSu(tk.Frame):
         super().__init__(parent, bg=THEME["bg2"])
         tk.Label(self, text="Lịch sử nhận diện dữ liệu", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
 
-class PanelQuanLy(tk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent, bg=THEME["bg2"])
-        tk.Label(self, text="Quản lý danh mục sản phẩm", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
+
 
 # ══════════════════════════════════════════════════════════════════
 #  ĐIỀU HÀNH VÀ KHỞI CHẠY HỆ THỐNG CHÍNH ĐÚNG YÊU CẦU
@@ -251,6 +248,7 @@ class PanelQuanLy(tk.Frame):
 if __name__ == "__main__":
     from db import tao_database
     from app import PanelQuet  # Nhúng trực tiếp Panel xử lý camera thật từ app.py
+    from CRUD_window import PanelQuanLy  
 
     print("🔧 [Hệ thống] Đang kiểm tra cấu trúc cơ sở dữ liệu...")
     tao_database()
@@ -261,10 +259,7 @@ if __name__ == "__main__":
             super().__init__(parent, bg=THEME["bg2"])
             tk.Label(self, text="Lịch sử nhận diện dữ liệu", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
 
-    class PanelQuanLy(tk.Frame):
-        def __init__(self, parent):
-            super().__init__(parent, bg=THEME["bg2"])
-            tk.Label(self, text="Quản lý danh mục sản phẩm", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
+    
 
     root = tk.Tk()
     shell = AppShell(root, title="Hệ thống nhận diện sản phẩm AI", size=(1060, 620))

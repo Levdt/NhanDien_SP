@@ -12,9 +12,8 @@ from ultralytics import YOLO
 import mediapipe as mp
 from db import get_conn, tao_database, tra_gia, luu_lich_su
 import time
-
 # Nhúng trực tiếp AppShell và hệ thống màu THEME từ file main_frame.py gốc
-from main_frame import AppShell, THEME          
+from main_frame import AppShell, THEME    
 
 
 # ─── Khởi tạo mô hình AI & Bàn tay ───────────────────────────────
@@ -189,7 +188,7 @@ class PanelQuet(tk.Frame):
             self.lbl_cam.after(30, self._update)
 
 
-# ══════════════════════════════════════════════════════════════════
+
 #  ĐIỀU HÀNH ỨNG DỤNG CHÍNH (Sử dụng nguyên gốc Shell từ main_frame)
 # ══════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
