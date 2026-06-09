@@ -11,6 +11,7 @@ from tkinter import ttk, filedialog
 import cv2
 from PIL import Image, ImageTk
 from detector import ProductDetector
+
 # ─── Theme toàn cục — import ở panel con để dùng chung ───────────
 THEME = {
     "bg":          "#111318",   # nền chính
@@ -235,13 +236,6 @@ class PanelNhanDienAnh(tk.Frame):
         except Exception as e:
             self.lbl_preview.config(text=f"Lỗi hiển thị hình ảnh: {e}")
 
-class PanelLichSu(tk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent, bg=THEME["bg2"])
-        tk.Label(self, text="Lịch sử nhận diện dữ liệu", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
-
-
-
 # ══════════════════════════════════════════════════════════════════
 #  ĐIỀU HÀNH VÀ KHỞI CHẠY HỆ THỐNG CHÍNH ĐÚNG YÊU CẦU
 # ══════════════════════════════════════════════════════════════════
@@ -249,16 +243,10 @@ if __name__ == "__main__":
     from db import tao_database
     from app import PanelQuet  # Nhúng trực tiếp Panel xử lý camera thật từ app.py
     from CRUD_window import PanelQuanLy  
+    from lich_su_panel import PanelLichSu
 
     print("🔧 [Hệ thống] Đang kiểm tra cấu trúc cơ sở dữ liệu...")
-    tao_database()
-
-    # Định nghĩa các Panel phụ (Bạn có thể tách file tương tự nếu cần)
-    class PanelLichSu(tk.Frame):
-        def __init__(self, parent):
-            super().__init__(parent, bg=THEME["bg2"])
-            tk.Label(self, text="Lịch sử nhận diện dữ liệu", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
-
+    tao_database()  
     
 
     root = tk.Tk()

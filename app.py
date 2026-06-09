@@ -193,11 +193,6 @@ class PanelQuet(tk.Frame):
             self.lbl_cam.after(30, self._update)
 
 
-# ─── Khung Panel mẫu để hệ thống không bị lỗi thiếu Class ───
-class PanelLichSu(tk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent, bg=THEME["bg2"])
-        tk.Label(self, text="Lịch sử nhận diện", bg=THEME["bg2"], fg=THEME["fg"], font=("Segoe UI", 14, "bold")).pack(pady=30)
 
 # ══════════════════════════════════════════════════════════════════
 #  ĐIỀU HÀNH ỨNG DỤNG CHÍNH (Sử dụng nguyên gốc Shell từ main_frame)
@@ -212,7 +207,6 @@ if __name__ == "__main__":
 
     # Đăng ký các Panel vào hệ thống tab nguyên bản bằng phương thức có sẵn
     panel_quet   = shell.dang_ky_tab("Quét sản phẩm",      PanelQuet)
-    panel_lichsu = shell.dang_ky_tab("Lịch sử nhận diện",  PanelLichSu)
 
 
     # Gắn sự kiện hook để giải phóng camera và ngắt tiến trình an toàn khi tắt app
