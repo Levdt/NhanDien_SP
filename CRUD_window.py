@@ -296,15 +296,18 @@ class PanelQuanLy(tk.Frame):
             font=("Segoe UI", 10)
         ).pack(side="left", padx=(8, 0))
 
-        self._var_search = tk.StringVar()
-        self._var_search.trace_add("write", lambda *_: self._loc())
-        tk.Entry(
+        _PH = "Tìm theo tên EN hoặc tên VN..."
+        self._ent_search = tk.Entry(
             search_wrap,
-            textvariable=self._var_search,
-            bg=THEME["bg3"], fg=THEME["fg"],
+            bg=THEME["bg3"], fg=THEME["fg_hint"],
             insertbackground=THEME["fg"],
-            relief="flat", font=("Segoe UI", 10), width=22
-        ).pack(side="left", padx=6, ipady=5)
+            relief="flat", font=("Segoe UI", 10), width=28
+        )
+        self._ent_search.insert(0, _PH)
+        self._ent_search.pack(side="left", padx=6, ipady=5)
+        self._ent_search.bind("<FocusIn>",   self._search_focus_in)
+        self._ent_search.bind("<FocusOut>",  self._search_focus_out)
+        self._ent_search.bind("<KeyRelease>", lambda *_: self._loc())
 
         # Nút Thêm
         tk.Button(
@@ -341,7 +344,7 @@ class PanelQuanLy(tk.Frame):
                 col,
                 width=do_rong[col],
                 anchor="center" if col == "ID" else "w",
-                stretch=(col == "Tên VN")
+                stretch=True
             )
 
         sb = ttk.Scrollbar(table_wrap, orient="vertical",
@@ -446,9 +449,21 @@ class PanelQuanLy(tk.Frame):
         else:
             self._lbl_status.config(text=f"{total} sản phẩm")
 
+    _PH = "Tìm theo tên EN hoặc tên VN..."
+
+    def _search_focus_in(self, e=None):
+        if self._ent_search.get() == self._PH:
+            self._ent_search.delete(0, "end")
+            self._ent_search.config(fg=THEME["fg"])
+
+    def _search_focus_out(self, e=None):
+        if not self._ent_search.get().strip():
+            self._ent_search.insert(0, self._PH)
+            self._ent_search.config(fg=THEME["fg_hint"])
+
     def _loc(self):
-        q = self._var_search.get().strip().lower()
-        if not q:
+        q = self._ent_search.get().strip().lower()
+        if not q or q == self._PH.lower():
             self._hien_bang(self._du_lieu)
             return
         ket_qua = [

@@ -201,7 +201,7 @@ if __name__ == "__main__":
 
     # Đăng ký các Panel vào hệ thống tab nguyên bản bằng phương thức có sẵn
     panel_quet   = shell.dang_ky_tab("Quét sản phẩm",      PanelQuet)
-
+    
     # Gắn sự kiện hook để giải phóng camera và ngắt tiến trình an toàn khi tắt app
     def xử_lý_thoát():
         shell.lay_panel(panel_quet).on_hide()
