@@ -87,9 +87,9 @@ class AppShell:
         if self.current_idx != -1:
             old_panel = self.tab_panels.get(self.current_idx)
             if old_panel:
-                old_panel.place_forget()
+                old_panel.place_forget()  
                 if hasattr(old_panel, "on_hide"):
-                    old_panel.on_hide()
+                    old_panel.on_hide() 
             self.tab_buttons[self.current_idx].config(fg=THEME["fg_muted"])
 
         # Hiển thị panel mới
@@ -113,6 +113,7 @@ class AppShell:
 
     def lay_panel(self, idx: int) -> tk.Frame:
         return self.tab_panels.get(idx)
+    
 class PanelNhanDienAnh(tk.Frame):
     """ TAB MỚI: Chức năng nhận diện sản phẩm qua file hình ảnh tải lên máy """
     def __init__(self, parent):

@@ -19,7 +19,7 @@ from main_frame import AppShell, THEME
 # ─── Khởi tạo mô hình AI & Bàn tay ───────────────────────────────
 model = YOLO("yolov8n.pt")
 mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(
+hands = mp_hands.Hands( 
     max_num_hands=2,
     min_detection_confidence=0.6,
     min_tracking_confidence=0.5
@@ -29,7 +29,7 @@ hands = mp_hands.Hands(
 CONF_NGUONG  = 0.50
 LUU_COOLDOWN = 3.0
 BO_QUA = {"person", "chair", "couch", "bed", "dining table",
-          "laptop", "tv", "cell phone", "vase", "scissors"}
+           "tv", "cell phone", "vase", "scissors"}
 
 # Định kích thước luồng hiển thị Camera (Khớp tỉ lệ ô trống bên trái)
 CAM_W, CAM_H = 640, 460   
