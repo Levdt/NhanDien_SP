@@ -129,7 +129,7 @@ class PanelNhanDienAnh(tk.Frame):
         self.right_frame.pack_propagate(False)
 
         # --- Bố cục Khu vực bên Trái (Xử lý Chọn Ảnh & Hiển thị) ---
-        # Thanh công cụ chứa nút bấm chọn ảnh
+        # Thanh công cụ chứa nút bấm chọn ảnh   
         self.toolbar = tk.Frame(self.left_frame, bg=THEME["bg"])
         self.toolbar.pack(side="top", fill="x", pady=(0, 10))
         

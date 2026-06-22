@@ -29,7 +29,7 @@ hands = mp_hands.Hands(
 CONF_NGUONG  = 0.50
 LUU_COOLDOWN = 3.0
 BO_QUA = {"person", "chair", "couch", "bed", "dining table",
-           "tv", "cell phone", "vase", "scissors"}
+           "tv",  "vase", "scissors"}
 
 # Định kích thước luồng hiển thị Camera (Khớp tỉ lệ ô trống bên trái)
 CAM_W, CAM_H = 640, 460   
